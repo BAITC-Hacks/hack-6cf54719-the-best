@@ -44,6 +44,9 @@ yarn-error.log*
 
 # Streamlit кэш
 .streamlit/
+!frontend/.streamlit/
+frontend/.streamlit/*
+!frontend/.streamlit/config.toml
 
 # Docker артефакты
 *.log

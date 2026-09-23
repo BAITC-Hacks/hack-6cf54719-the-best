@@ -8,23 +8,45 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_teams_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ai_sana -d ai_sana"]
       interval: 5s
       timeout: 5s
       retries: 20
   backend:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
+    build: ./backend
     environment:
       DATABASE_URL: postgresql+psycopg://ai_sana:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/ai_sana
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local-development-only-change-before-deploying}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5-mini}
+      ASTANAHUB_REVIEW_EMAIL: ${ASTANAHUB_REVIEW_EMAIL:-catalog@aisana.example.com}
+      ASTANAHUB_REVIEW_PASSWORD: ${ASTANAHUB_REVIEW_PASSWORD:-local-demo-change-me}
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
       db:
         condition: service_healthy
-    command: ["sh", "-c", "python -m backend.init_db && uvicorn backend.main:app --host 0.0.0.0 --port 8000"]
+
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    environment:
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8502}:8501"
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  postgres_teams_data:
