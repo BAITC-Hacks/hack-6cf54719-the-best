@@ -1,30 +1,39 @@
-# 🤖 Multi-Agent Architecture & Pipeline Design (`agentic.md`)
+# 🤖 Multi-Agent Architecture & Pipeline Design — `agentic.md`
 
-В данном документе описана архитектура мультиагентной системы, роли автономных агентов, протоколы передачи контекста, цепочки рефлексии (Self-Reflection) и механизмы защиты от галлюцинаций.
+Мультиагентная система помогает компаниям превращать краткое описание бизнес-проблемы в понятную практическую задачу для студентов. AI задаёт уточняющие вопросы и формирует редактируемый черновик карточки. Работодатель проверяет и подтверждает данные перед публикацией.
 
----
+Система не придумывает отсутствующие сведения, не публикует задачи самостоятельно и не выбирает студенческие команды.
 
-## 1. Архитектурная схема пайплайна
-
-Система построена по паттерну **Orchestrator-Workers with Reflection Loop**. Центральный координатор управляет жизненным циклом запроса, распределяя задачи между узкоспециализированными агентами.
+## 1. Архитектура пайплайна
 
 ```mermaid
 graph TD
-    User([Входные данные / Пользователь]) --> Orchestrator[🎯 Orchestrator Agent]
-    
-    subgraph "Агентный контур (Core Execution)"
-        Orchestrator -->|1. Сырые данные| Parser[🔍 Parser & Extraction Agent]
-        Parser -->|Строгий Pydantic JSON| Orchestrator
-        
-        Orchestrator -->|2. Структурированный контекст| DomainAgent[⚙️ Domain Logic Agent]
-        DomainAgent -->|3. Function Calling / Tools| Tools[(🛠️ Tools: Math/DB/Rules)]
-        Tools -->|Результат вычислений| DomainAgent
-        DomainAgent -->|Черновое решение| Orchestrator
-        
-        Orchestrator -->|3. Верификация| Critic[🛡️ Critic & Guardrail Agent]
-        Critic -- "❌ Ошибка / Несоответствие правилам (Loop <= 2)" --> DomainAgent
-        Critic -- "✅ Успешная валидация" --> Orchestrator
+    User([Представитель компании]) -->|Описание проблемы и ответы| Orchestrator[🎯 Orchestrator Agent]
+
+    subgraph "AI-пайплайн"
+        Orchestrator -->|Исходный текст| Parser[🔍 Parser & Extraction Agent]
+        Parser -->|Структурированные факты и пробелы| Orchestrator
+
+        Orchestrator -->|Факты и недостающие поля| Questions[❓ Clarification Agent]
+        Questions -->|Не менее 3 уместных вопросов| Orchestrator
+
+        User -->|Ответы на вопросы| Orchestrator
+        Orchestrator -->|Подтверждённые пользователем сведения| Worker[⚙️ Task Card Worker]
+        Worker -->|Черновик карточки по Pydantic-схеме| Orchestrator
+
+        Orchestrator -->|Черновик и исходные сведения| Critic[🛡️ Critic & Guardrail]
+        Critic -->|Ошибки или неподтверждённые факты| Orchestrator
+        Orchestrator -->|Исправление, максимум 2 попытки| Worker
+        Critic -->|Проверка пройдена| Orchestrator
     end
-    
-    Orchestrator -->|4. Финализация| Formatter[📄 Formatter Agent]
-    Formatter --> APIResponse([Выходной JSON / UI Streamlit])
+
+    Orchestrator -->|Карточка и trace| Formatter[📄 Formatter]
+    Formatter -->|Редактируемый черновик| Employer([Интерфейс компании])
+
+    Employer -->|Редактирование и подтверждение| Backend[🗄️ Backend API]
+    Backend -->|Расчёт рейтинга обычным кодом| Scoring[📊 Readiness Scoring]
+    Scoring -->|Подтверждённая задача| Catalog[(📚 Каталог задач)]
+    Catalog -->|Просмотр и отклики| Student([Студенческая команда])
+    Student -->|Предложение: идея, план, срок, прототип| Applications[(✉️ Отклики)]
+    Applications -->|Список предложений| Employer
+    Employer -->|Ручной выбор или отклонение| Applications
