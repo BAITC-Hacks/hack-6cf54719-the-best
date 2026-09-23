@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Sana · каталог задач</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand brand-light">✦ AI Sana</div>
+      <p class="sidebar-subtitle">Открытый каталог бизнес-задач</p>
+      <hr>
+      <h2>Фильтры</h2>
+      <label for="industry">Отрасль</label>
+      <select id="industry"><option value="all">Все отрасли</option></select>
+      <label for="level">Готовность</label>
+      <select id="level">
+        <option value="all">Все уровни</option>
+        <option>Приоритетная</option><option>Готовая</option><option>Рабочая</option><option>Черновик</option>
+      </select>
+      <label for="min-score">Минимальный рейтинг <output id="score-value">0</output></label>
+      <input id="min-score" type="range" min="0" max="100" step="5" value="0">
+      <hr>
+      <h2>Правило каталога</h2>
+      <p class="sidebar-note">Низкий рейтинг не скрывает задачу. Он показывает, сколько уточнений потребуется команде.</p>
+    </aside>
+
+    <main class="content">
+      <header class="page-header">
+        <div>
+          <div class="brand">Общий каталог задач</div>
+          <p class="muted">Выберите задачу, изучите контекст и отправьте предложение своей команды.</p>
+        </div>
+      </header>
+
+      <section class="toolbar" aria-label="Управление каталогом">
+        <input id="search" type="search" placeholder="Например: данные, клиника, AI…" aria-label="Поиск">
+        <select id="sort" aria-label="Сортировка">
+          <option value="high">Рейтинг: сначала высокий</option>
+          <option value="low">Рейтинг: сначала низкий</option>
+          <option value="new">Сначала новые</option>
+        </select>
+        <div class="published"><strong id="published-count">4</strong><span>Опубликовано</span></div>
+      </section>
+
+      <div class="results-line"><strong id="results-count">4 задачи</strong> доступны для отклика</div>
+      <section id="task-list" class="task-list"></section>
+      <section id="empty-state" class="empty-state" hidden>По этим фильтрам задач не найдено. Попробуйте убрать часть ограничений.</section>
+      <section id="details" class="details" hidden></section>
+    </main>
+  </div>
+
+  <script>
+    const tasks = [
+      {id:'T-1042', title:'Снизить число пропущенных записей в клинике', company:'MedPoint', industry:'Здравоохранение', level:'Рабочая', score:68, summary:'Нужно повысить подтверждение записи пациентов без сложной CRM.', users:'Пациенты и администраторы', data:'История записей за 6 месяцев', deadline:'2 недели', tags:['web','данные готовы','healthcare'], missing:['Измеримый target по снижению пропусков','Примеры сообщений пациентам'], proposals:3},
+      {id:'T-1038', title:'Понять, почему пользователи бросают анкету', company:'FinStart', industry:'Финтех', level:'Готовая', score:82, summary:'Исследовать воронку анкеты и предложить быстрые UX-улучшения.', users:'Новые клиенты сервиса', data:'События воронки и 12 интервью', deadline:'10 дней', tags:['analytics','ux research'], missing:['Нет критичных пропусков'], proposals:5},
+      {id:'T-1029', title:'Автоматизировать сводку обратной связи клиентов', company:'Qazaq Market', industry:'Ритейл', level:'Приоритетная', score:94, summary:'Собрать отзывы из нескольких каналов и выделять повторяющиеся проблемы.', users:'Команда поддержки и продукта', data:'CSV с отзывами и категориями обращений', deadline:'3 недели', tags:['ai','python','csv'], missing:['Нет критичных пропусков'], proposals:7},
+      {id:'T-1017', title:'Сделать понятнее отчёт для руководителя школы', company:'Bilim Hub', industry:'Образование', level:'Черновик', score:34, summary:'Сейчас отчёт содержит много таблиц, но не помогает быстро увидеть риски.', users:'Директора и кураторы', data:'Excel-отчёты за прошлый семестр', deadline:'Не определён', tags:['dashboard','data viz'], missing:['Критерии успеха','Ограничения по срокам','Примеры решений'], proposals:1}
+    ];
+    const esc = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+    const scoreClass = score => score >= 90 ? 'excellent' : score >= 70 ? 'good' : score >= 40 ? 'medium' : 'low';
+    const levelClass = level => ({'Приоритетная':'priority','Готовая':'ready','Рабочая':'working','Черновик':'draft'}[level] || 'draft');
+    const $ = id => document.getElementById(id);
+    let selectedId = null;
+    function render() {
+      const query = $('search').value.trim().toLowerCase(), industry = $('industry').value, level = $('level').value, minScore = Number($('min-score').value);
+      let visible = tasks.filter(t => (industry === 'all' || t.industry === industry) && (level === 'all' || t.level === level) && t.score >= minScore && (!query || `${t.title} ${t.summary} ${t.industry} ${t.company}`.toLowerCase().includes(query)));
+      if ($('sort').value === 'high') visible.sort((a,b) => b.score-a.score); else if ($('sort').value === 'low') visible.sort((a,b) => a.score-b.score);
+      $('results-count').textContent = `${visible.length} ${visible.length === 1 ? 'задача' : 'задачи'}`;
+      $('empty-state').hidden = visible.length !== 0;
+      $('task-list').innerHTML = visible.map(t => `<article class="task-card"><div class="task-top"><div><div class="eyebrow">${esc(t.id)} · ${esc(t.company)} · ${esc(t.industry)}</div><h2>${esc(t.title)}</h2><p class="summary">${esc(t.summary)}</p><div>${t.tags.map(tag => `<span class="badge">${esc(tag)}</span>`).join('')}</div></div><div class="score ${scoreClass(t.score)}">${t.score}<small>из 100</small></div></div><div class="card-footer"><div><span>Готовность</span><b class="level ${levelClass(t.level)}">${esc(t.level)}</b></div><div><span>Срок</span><b>${esc(t.deadline)}</b></div><div><span>Откликов</span><b>${t.proposals}</b></div><button class="button button-secondary" data-details="${t.id}">Подробнее</button></div></article>`).join('');
+      document.querySelectorAll('[data-details]').forEach(button => button.addEventListener('click', () => showDetails(button.dataset.details)));
+    }
+    function showDetails(id) {
+      const t = tasks.find(task => task.id === id); selectedId = id;
+      $('details').hidden = false; $('details').innerHTML = `<div class="details-heading"><h2>Детали: ${esc(t.title)}</h2><button class="close" aria-label="Закрыть" id="close-details">×</button></div><div class="detail-grid"><div class="detail-box"><div class="detail-row"><span>Контекст</span><b>${esc(t.summary)}</b></div><div class="detail-row"><span>Пользователи</span><b>${esc(t.users)}</b></div><div class="detail-row"><span>Доступные данные</span><b>${esc(t.data)}</b></div><div class="detail-row"><span>Ограничение по сроку</span><b>${esc(t.deadline)}</b></div></div><div class="detail-box"><div class="rating"><span>Рейтинг готовности</span><strong class="${scoreClass(t.score)}">${t.score} / 100</strong></div><h3>Что ещё уточнить:</h3><ul>${t.missing.map(item => `<li>${esc(item)}</li>`).join('')}</ul><button class="button button-primary" id="proposal">Подать предложение</button><p class="success" id="success" hidden>Демо: экран подачи предложения готов к подключению к API.</p></div></div>`;
+      $('close-details').onclick = () => {$('details').hidden = true; selectedId = null;}; $('proposal').onclick = () => {$('success').hidden = false;}; $('details').scrollIntoView({behavior:'smooth', block:'start'});
+    }
+    [...new Set(tasks.map(t => t.industry))].sort().forEach(item => $('industry').insertAdjacentHTML('beforeend', `<option>${esc(item)}</option>`));
+    ['industry','level','min-score','search','sort'].forEach(id => $(id).addEventListener('input', () => { if (id === 'min-score') $('score-value').textContent = $('min-score').value; render(); }));
+    $('published-count').textContent = tasks.length; render();
+  </script>
+</body>
+</html>
